@@ -13,10 +13,18 @@ ODOO_USERNAME = 'jason@wavcor.ca'
 ODOO_PASSWORD = 'Wavcor3702?'
 
 def connect_odoo():
-    common = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/common')
-    uid = common.authenticate(ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD, {})
-    models = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/object')
-    return uid, models
+    """Establishes an XML-RPC connection to the Odoo server."""
+    try:
+        common = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/common')
+        uid = common.authenticate(ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD, {})
+        if not uid:
+            print("ERROR: Authentication failed. Check your Odoo credentials.")
+            return None, None
+        models = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/object')
+        return uid, models
+    except Exception as e:
+        print(f"ERROR: Failed to connect to Odoo server: {e}")
+        return None, None
 
 STATE_TO_COUNTRY_MAP = {
     # Canadian Provinces and Territories
@@ -543,4 +551,32 @@ def update_odoo_opportunity(opportunity_id, opportunity_data):
         return False
     except Exception as e:
         print(f"Unexpected error updating opportunity {opportunity_id}: {e}")
+        return False
+    
+def post_internal_note_to_opportunity(models, uid, opportunity_id, note_content):
+    """
+    Posts an internal note to a specific Odoo opportunity.
+
+    :param models: The Odoo models proxy object.
+    :param uid: The user ID for authentication.
+    :param opportunity_id: The ID of the CRM opportunity (crm.lead) to update.
+    :param note_content: The text of the note to post.
+    :return: The ID of the new message, or False on failure.
+    """
+    try:
+        message_id = models.execute_kw(
+            ODOO_DB, uid, ODOO_PASSWORD,
+            "crm.lead",
+            "message_post",
+            [[opportunity_id]],
+            {
+                "body": note_content,
+                "message_type": "comment",
+                "subtype_xmlid": "mail.mt_note",
+            }
+        )
+        print(f"INFO: Successfully posted internal note to opportunity {opportunity_id}.")
+        return message_id
+    except Exception as e:
+        print(f"ERROR: Failed to post internal note to opportunity {opportunity_id}: {e}")
         return False
