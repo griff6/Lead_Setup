@@ -19,7 +19,8 @@ from odoo_connector import (
     find_existing_opportunity,
     update_odoo_opportunity,
     post_internal_note_to_opportunity, # Ensure this is imported if you added it previously
-    ODOO_URL 
+    ODOO_URL, 
+    normalize_state
 )
 from datetime import datetime, timedelta
 import time
@@ -114,7 +115,8 @@ def extract_data():
         elif line.startswith("City:"):
             data["City"] = line.replace("City:", "").strip()
         elif line.startswith("Prov/State:"):
-            data["Prov/State"] = line.replace("Prov/State:", "").strip()
+            raw_state = line.replace("Prov/State:", "").strip()
+            data["Prov/State"] = normalize_state(raw_state)
         elif line.startswith("Products Interest:"):
             products_text = line.replace("Products Interest:", "").strip()
             i += 1

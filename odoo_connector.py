@@ -4,6 +4,8 @@
 import xmlrpc.client
 from datetime import datetime, timedelta 
 import math
+from typing import Optional, Union
+import re
 
 ODOO_URL = 'https://wavcor-international-inc2.odoo.com'
 #ODOO_URL = 'https://wavcor-test-2025-07-20.odoo.com'
@@ -106,6 +108,106 @@ STATE_TO_COUNTRY_MAP = {
     'NT': 'Australia', 'Northern Territory': 'Australia',
 }
 
+# canonical codes we accept (2-letter US/CA, some 3-letter AUS codes)
+CANONICAL_CODES = {
+    # Canada
+    "AB","BC","MB","NB","NL","NS","ON","PE","QC","SK","NT","NU","YT",
+    # United States
+    "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+    "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+    "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+    "VA","WA","WV","WI","WY","DC",
+    # Australia (3-letter codes)
+    "NSW","VIC","QLD","SA","WA","TAS","ACT","NT",
+}
+
+# Map full names and common aliases -> canonical code
+NAME_TO_CODE = {
+    # Canada
+    "ALBERTA": "AB",
+    "BRITISH COLUMBIA": "BC",
+    "MANITOBA": "MB",
+    "NEW BRUNSWICK": "NB",
+    "NEWFOUNDLAND AND LABRADOR": "NL",
+    "NEWFOUNDLAND": "NL",
+    "NOVA SCOTIA": "NS",
+    "ONTARIO": "ON",
+    "PRINCE EDWARD ISLAND": "PE",
+    "PEI": "PE",
+    "QUEBEC": "QC",
+    "SASKATCHEWAN": "SK",
+    "NORTHWEST TERRITORIES": "NT",
+    "NWT": "NT",
+    "NUNAVUT": "NU",
+    "YUKON": "YT",
+
+    # United States (full names only)
+    "ALABAMA": "AL", "ALASKA": "AK", "ARIZONA": "AZ", "ARKANSAS": "AR",
+    "CALIFORNIA": "CA", "COLORADO": "CO", "CONNECTICUT": "CT",
+    "DELAWARE": "DE", "FLORIDA": "FL", "GEORGIA": "GA", "HAWAII": "HI",
+    "IDAHO": "ID", "ILLINOIS": "IL", "INDIANA": "IN", "IOWA": "IA",
+    "KANSAS": "KS", "KENTUCKY": "KY", "LOUISIANA": "LA", "MAINE": "ME",
+    "MARYLAND": "MD", "MASSACHUSETTS": "MA", "MICHIGAN": "MI",
+    "MINNESOTA": "MN", "MISSISSIPPI": "MS", "MISSOURI": "MO",
+    "MONTANA": "MT", "NEBRASKA": "NE", "NEVADA": "NV",
+    "NEW HAMPSHIRE": "NH", "NEW JERSEY": "NJ", "NEW MEXICO": "NM",
+    "NEW YORK": "NY", "NORTH CAROLINA": "NC", "NORTH DAKOTA": "ND",
+    "OHIO": "OH", "OKLAHOMA": "OK", "OREGON": "OR", "PENNSYLVANIA": "PA",
+    "RHODE ISLAND": "RI", "SOUTH CAROLINA": "SC", "SOUTH DAKOTA": "SD",
+    "TENNESSEE": "TN", "TEXAS": "TX", "UTAH": "UT", "VERMONT": "VT",
+    "VIRGINIA": "VA", "WASHINGTON": "WA", "WEST VIRGINIA": "WV",
+    "WISCONSIN": "WI", "WYOMING": "WY",
+    "DISTRICT OF COLUMBIA": "DC",
+    "WASHINGTON DC": "DC",
+    "D C": "DC",
+    "DC": "DC",
+
+    # Australia (full names and common abbreviations)
+    "NEW SOUTH WALES": "NSW", "NSW": "NSW",
+    "VICTORIA": "VIC", "VIC": "VIC",
+    "QUEENSLAND": "QLD", "QLD": "QLD",
+    "SOUTH AUSTRALIA": "SA", "SA": "SA",
+    "WESTERN AUSTRALIA": "WA",  # ambiguous with US WA
+    "TASMANIA": "TAS", "TAS": "TAS",
+    "AUSTRALIAN CAPITAL TERRITORY": "ACT", "ACT": "ACT",
+    "NORTHERN TERRITORY": "NT",  # ambiguous with Canadian NT
+}
+
+# Map canonical code -> country or list of possible countries (when ambiguous)
+CODE_TO_COUNTRIES = {
+    # Canada (unique)
+    "AB": "Canada", "BC": "Canada", "MB": "Canada", "NB": "Canada",
+    "NL": "Canada", "NS": "Canada", "ON": "Canada", "PE": "Canada",
+    "QC": "Canada", "SK": "Canada", "NU": "Canada", "YT": "Canada",
+    # NT ambiguous: can be Canada (Northwest Territories) or Australia (Northern Territory)
+    "NT": ["Canada", "Australia"],
+
+    # United States (unique)
+    "AL": "United States", "AK": "United States", "AZ": "United States",
+    "AR": "United States", "CA": "United States", "CO": "United States",
+    "CT": "United States", "DE": "United States", "FL": "United States",
+    "GA": "United States", "HI": "United States", "ID": "United States",
+    "IL": "United States", "IN": "United States", "IA": "United States",
+    "KS": "United States", "KY": "United States", "LA": "United States",
+    "ME": "United States", "MD": "United States", "MA": "United States",
+    "MI": "United States", "MN": "United States", "MS": "United States",
+    "MO": "United States", "MT": "United States", "NE": "United States",
+    "NV": "United States", "NH": "United States", "NJ": "United States",
+    "NM": "United States", "NY": "United States", "NC": "United States",
+    "ND": "United States", "OH": "United States", "OK": "United States",
+    "OR": "United States", "PA": "United States", "RI": "United States",
+    "SC": "United States", "SD": "United States", "TN": "United States",
+    "TX": "United States", "UT": "United States", "VT": "United States",
+    "VA": "United States", "WA": ["United States", "Australia"],  # WA ambiguous
+    "WV": "United States", "WI": "United States", "WY": "United States",
+    "DC": "United States",
+
+    # Australia (unique except NT/WA handled above)
+    "NSW": "Australia", "VIC": "Australia", "QLD": "Australia",
+    "SA": "Australia", "TAS": "Australia", "ACT": "Australia",
+}
+
+
 DEALER_LOCATIONS = [
     {"Location": "Mariapolis Agro Centre", "Latitude": 49.360666, "Longitude": -98.98952, "Contact": "Scott Hainsworth", "Phone": "204-723-0249"},
     {"Location": "Baldur Agro Centre", "Latitude": 49.385578, "Longitude": -99.24384, "Contact": "Scott Hainsworth", "Phone": "204-723-0249"},
@@ -143,15 +245,154 @@ DEALER_LOCATIONS = [
     {"Location": "Wynyard Coop", "Latitude": 51.7833, "Longitude": -104.1667, "Contact": "Victor Hawryluk", "Phone": "306-874-7816"},
     {"Location": "Turtleford", "Latitude": 53.034, "Longitude": -108.973, "Contact": "Kelly Svoboda", "Phone": "306-845-2183"},
     {"Location": "Maidstone Coop", "Latitude": 53.081224, "Longitude": -109.2957338, "Contact": "Kelly Svoboda", "Phone": "306-845-2183"},
+    {"Location": "Bulyea Co-Op", "Latitude": 50.987541, "Longitude": -104.865293, "Contact": "Brad Foster", "Phone": "(306) 725-4931"},
+    {"Location": "Luseland Home & Agro Centre", "Latitude": 52.079015, "Longitude": -109.39177, "Contact": "Michael Kwiatkowski", "Phone": "306.228.2624"},
+    {"Location": "Unity Agro Centre & Bulk Petroleum", "Latitude": 52.439538, "Longitude": -109.153921, "Contact": "Michael Kwiatkowski", "Phone": "306.228.2624"},
+    {"Location": "Macklin Agro Centre", "Latitude": 52.329738, "Longitude": -109.94157, "Contact": "Michael Kwiatkowski", "Phone": "306.228.2624"},
+    {"Location": "Lloydminster Agro Centre", "Latitude": 53.268327, "Longitude": -109.964267, "Contact": "Chad Gessner", "Phone": "(306) 825-8180"},
+    {"Location": "Lloyd South Agro Centre", "Latitude": 53.268327, "Longitude": -109.964267, "Contact": "Chad Gessner", "Phone": "(306) 825-8180"},
+    {"Location": "Lashburn Agro Centre", "Latitude": 53.124683, "Longitude": -109.617828, "Contact": "Chad Gessner", "Phone": "(306) 825-8180"},
+    {"Location": "Neilburg Agro & Lumber Centre", "Latitude": 52.841832, "Longitude": -109.624412, "Contact": "Chad Gessner", "Phone": "(306) 825-8180"},
+    {"Location": "Hudson Bay Agro Centre", "Latitude": 52.857415, "Longitude": -102.391506, "Contact": "Karissa Lupuliak", "Phone": "(306) 865-2288"},
+    {"Location": "St. Isidore Agro Centre & Food Store", "Latitude": 56.206934, "Longitude": -117.108478, "Contact": "Jeff Leflair", "Phone": "(780) 624-3121"},
+    {"Location": "Falher Agro Centre", "Latitude": 55.738632, "Longitude": -117.198337, "Contact": "Jeff Leflair", "Phone": "(780) 624-3121"},
+    {"Location": "Plenty Agro Centre", "Latitude": 51.782722, "Longitude": -108.645328, "Contact": "Scott Burton", "Phone": "306-932-7072"},
+    {"Location": "Rosetown Agro Centre", "Latitude": 51.547969, "Longitude": -108.001044, "Contact": "Scott Burton", "Phone": "306-932-7072"},
+    {"Location": "Landis Agro Centre", "Latitude": 52.201375, "Longitude": -108.459017, "Contact": "Scott Burton", "Phone": "306-932-7072"},
+    {"Location": "Naicam Agro Centre", "Latitude": 52.377063, "Longitude": -104.499982, "Contact": "Jason Hutchingson", "Phone": "306-980-6770"},
+    {"Location": "Melfort Home & Agro Centre", "Latitude": 52.866642, "Longitude": -104.635423, "Contact": "Jason Hutchingson", "Phone": "306-980-6770"},
+    {"Location": "Kelvington Home & Agro Centre", "Latitude": 52.164223, "Longitude": -103.525442, "Contact": "Jason Hutchingson", "Phone": "306-980-6770"},
+    {"Location": "Archerwill Agro Centre", "Latitude": 52.441637, "Longitude": -103.864246, "Contact": "Jason Hutchingson", "Phone": "306-980-6770"},
+    {"Location": "Lake Lenore Agro Centre", "Latitude": 52.395224, "Longitude": -104.979865, "Contact": "Liam Jennett", "Phone": "(306) 368-2255"},
+    {"Location": "Tisdale Agro Centre", "Latitude": 52.841191, "Longitude": -104.052337, "Contact": "Tammy Doerksen", "Phone": "(306) 873-5111"},
+    {"Location": "Carrot River Farm Supply", "Latitude": 53.281467, "Longitude": -103.584011, "Contact": "Tammy Doerksen", "Phone": "306.873.5111"},
+    {"Location": "Kindersley Co-op Coleville Cardlock", "Latitude": 51.705463, "Longitude": -109.240564, "Contact": "Brent Jones", "Phone": "306-460-5717"},
+    {"Location": "Kindersley Co-op Kerrobert Cardlock", "Latitude": 51.917593, "Longitude": -109.135279, "Contact": "Brent Jones", "Phone": "306-460-5717"},
+    {"Location": "Kindersley Co-op Brock Cardlock", "Latitude": 51.439892, "Longitude": -108.720097, "Contact": "Brent Jones", "Phone": "306-460-5717"},
+    {"Location": "Kindersley Co-op Hoosier Cardlock", "Latitude": 51.624495, "Longitude": -109.739751, "Contact": "Brent Jones", "Phone": "306-460-5717"},
+    {"Location": "Kindersley Co-op Marengo Cardlock", "Latitude": 51.477654, "Longitude": -109.782534, "Contact": "Brent Jones", "Phone": "306-460-5717"},
+    {"Location": "Kindersley Co-op Eatonia Cardlock", "Latitude": 51.221243, "Longitude": -109.385064, "Contact": "Brent Jones", "Phone": "306-460-5717"},
+    {"Location": "Kindersley Co-op Cardlock", "Latitude": 51.470174, "Longitude": -109.143149, "Contact": "Brent Jones", "Phone": "306-460-5717"},
+    {"Location": "Kindersley Co-op Eatonia Farm Supply and", "Latitude": 51.221001, "Longitude": -109.388583, "Contact": "Brent Jones", "Phone": "306-460-5717"}
 ]
+
+# helper to clean input strings
+def _clean(value: str) -> str:
+    if not value:
+        return ""
+    v = str(value).strip().upper()
+    v = re.sub(r"[^\w\s]", "", v)  # remove punctuation
+    v = re.sub(r"\s+", " ", v)     # collapse whitespace
+    return v.strip()
+
+def normalize_state(value: str) -> str:
+    """
+    Normalize any state/province input into a canonical code (e.g. 'ND', 'SK', 'VIC').
+    Returns the canonical code if recognized, otherwise cleaned input.
+    """
+    if not value:
+        return value
+    v = _clean(value)
+
+    # already a canonical code?
+    if v in CANONICAL_CODES:
+        return v
+
+    # direct alias lookup
+    if v in NAME_TO_CODE:
+        return NAME_TO_CODE[v]
+
+    # try no-space version (handles "PrinceEdwardIsland")
+    v_nospace = v.replace(" ", "")
+    if v_nospace in NAME_TO_CODE:
+        return NAME_TO_CODE[v_nospace]
+
+    return v  # fallback: cleaned input
+
+def resolve_country(state_input: str, country_hint: Optional[str] = None) -> Union[str, list, None]:
+    """
+    Return a single country (string) when unambiguous, a list when ambiguous,
+    or None when unknown. You may pass country_hint (like 'Canada' or 'Australia')
+    to resolve ambiguous codes.
+    """
+    if not state_input:
+        return None
+
+    raw = str(state_input)
+    code = normalize_state(raw)
+    countries = CODE_TO_COUNTRIES.get(code)
+
+    if not countries:
+        return None
+
+    # single country string -> done
+    if isinstance(countries, str):
+        return countries
+
+    # countries is a list (ambiguous): try country_hint first
+    if country_hint:
+        h = country_hint.strip().lower()
+        for c in countries:
+            if h in c.lower():
+                return c
+
+    # try to disambiguate by words in the original input
+    u = _clean(raw)
+    if "NORTHWEST" in u or "NWT" in u:
+        return "Canada"
+    if "NORTHERN TERRIT" in u:  # "NORTHERN TERRITORY"
+        return "Australia"
+    if "WESTERN AUSTRALIA" in u or ("AUSTRALIA" in u and "WESTERN" in u):
+        return "Australia"
+    if "WASHINGTON" in u and "DC" not in u:
+        return "United States"
+
+    # cannot disambiguate
+    return countries
 
 def get_state_id(models, uid, state_name):
     if not state_name:
         return False
+    
+    normalized_state = normalize_state(state_name)
+    if not normalized_state:
+        print(f"DEBUG: No normalized state found for '{state_name}'.")
+        return False
+        
+    print(f"DEBUG: Normalized state is '{normalized_state}'.")
+    
+    country_name = resolve_country(state_name)
+    if not country_name:
+        print(f"DEBUG: Could not resolve country for state '{state_name}'.")
+        return False
+    
+    country_id = get_country_id(models, uid, country_name)
+    if not country_id:
+        print(f"DEBUG: Could not get country ID for '{country_name}'.")
+        return False
+
+    # 1. Search for an exact match on the code first
     states = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
         'res.country.state', 'search_read',
-        [[('name', 'ilike', state_name.strip())]], {'fields': ['id'], 'limit': 1})
-    return states[0]['id'] if states else False
+        [[('code', '=', normalized_state), ('country_id', '=', country_id)]], 
+        {'fields': ['id'], 'limit': 1})
+        
+    if states:
+        print(f"DEBUG: Found Odoo state ID {states[0]['id']} by code for '{state_name}'.")
+        return states[0]['id']
+    else:
+        # 2. Fallback to a case-insensitive name search if no code match is found
+        states = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+            'res.country.state', 'search_read',
+            [[('name', 'ilike', state_name.strip()), ('country_id', '=', country_id)]], 
+            {'fields': ['id'], 'limit': 1})
+            
+        if states:
+            print(f"DEBUG: Found Odoo state ID {states[0]['id']} by name for '{state_name}'.")
+            return states[0]['id']
+        else:
+            print(f"DEBUG: No Odoo state found for '{state_name}' in country '{country_name}'.")
+            return False
 
 def get_country_id(models, uid, country_name):
     if not country_name:
@@ -315,6 +556,7 @@ def create_odoo_contact(data):
     country_id = False
     state_id = False
     prov_state_input = data['Prov/State'].strip()
+    print(f"DEBUG: In create_odoo_contact Prov/State is '{prov_state_input}'.")
 
     if prov_state_input:
         state_id = get_state_id(models, uid, prov_state_input)
@@ -361,6 +603,7 @@ def update_odoo_contact(contact_id, data):
 
     if prov_state_input:
         state_id = get_state_id(models, uid, prov_state_input)
+        print(f"DEBUG: In update_odoo_contact Prov/State is '{prov_state_input}', state_id is '{state_id}'.")
 
         country_name = STATE_TO_COUNTRY_MAP.get(prov_state_input, None)
         if country_name:
