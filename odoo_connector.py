@@ -136,6 +136,7 @@ NAME_TO_CODE = {
     "PEI": "PE",
     "QUEBEC": "QC",
     "SASKATCHEWAN": "SK",
+    "SASK": "SK",
     "NORTHWEST TERRITORIES": "NT",
     "NWT": "NT",
     "NUNAVUT": "NU",
