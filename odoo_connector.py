@@ -255,8 +255,8 @@ DEALER_LOCATIONS = [
     {"Location": "Lashburn Agro Centre", "Latitude": 53.124683, "Longitude": -109.617828, "Contact": "Chad Gessner", "Phone": "(306) 825-8180"},
     {"Location": "Neilburg Agro & Lumber Centre", "Latitude": 52.841832, "Longitude": -109.624412, "Contact": "Chad Gessner", "Phone": "(306) 825-8180"},
     {"Location": "Hudson Bay Agro Centre", "Latitude": 52.857415, "Longitude": -102.391506, "Contact": "Karissa Lupuliak", "Phone": "(306) 865-2288"},
-    {"Location": "St. Isidore Agro Centre & Food Store", "Latitude": 56.206934, "Longitude": -117.108478, "Contact": "Jeff Leflair", "Phone": "(780) 624-3121"},
-    {"Location": "Falher Agro Centre", "Latitude": 55.738632, "Longitude": -117.198337, "Contact": "Jeff Leflair", "Phone": "(780) 624-3121"},
+    {"Location": "St. Isidore Agro Centre & Food Store", "Latitude": 56.206934, "Longitude": -117.108478, "Contact": "Jeff Labrecque", "Phone": "(780) 624-3121"},
+    {"Location": "Falher Agro Centre", "Latitude": 55.738632, "Longitude": -117.198337, "Contact": "Jeff Labrecque", "Phone": "(780) 624-3121"},
     {"Location": "Plenty Agro Centre", "Latitude": 51.782722, "Longitude": -108.645328, "Contact": "Scott Burton", "Phone": "306-932-7072"},
     {"Location": "Rosetown Agro Centre", "Latitude": 51.547969, "Longitude": -108.001044, "Contact": "Scott Burton", "Phone": "306-932-7072"},
     {"Location": "Landis Agro Centre", "Latitude": 52.201375, "Longitude": -108.459017, "Contact": "Scott Burton", "Phone": "306-932-7072"},
@@ -274,7 +274,9 @@ DEALER_LOCATIONS = [
     {"Location": "Kindersley Co-op Marengo Cardlock", "Latitude": 51.477654, "Longitude": -109.782534, "Contact": "Brent Jones", "Phone": "306-460-5717"},
     {"Location": "Kindersley Co-op Eatonia Cardlock", "Latitude": 51.221243, "Longitude": -109.385064, "Contact": "Brent Jones", "Phone": "306-460-5717"},
     {"Location": "Kindersley Co-op Cardlock", "Latitude": 51.470174, "Longitude": -109.143149, "Contact": "Brent Jones", "Phone": "306-460-5717"},
-    {"Location": "Kindersley Co-op Eatonia Farm Supply and", "Latitude": 51.221001, "Longitude": -109.388583, "Contact": "Brent Jones", "Phone": "306-460-5717"}
+    {"Location": "Kindersley Co-op Eatonia Farm Supply and", "Latitude": 51.221001, "Longitude": -109.388583, "Contact": "Brent Jones", "Phone": "306-460-5717"},
+    {"Location": "Parkland Co-Op", "Latitude": 52.599479, "Longitude": -103.251540, "Contact": "Don Hilash", "Phone": "306-278-3113"},
+    {"Location": "Hudson Bay Agro Centre", "Latitude": 52.85833, "Longitude": -102.38861, "Contact": "Karissa Lupuliak", "Phone": "306-865-2288"}
 ]
 
 # helper to clean input strings

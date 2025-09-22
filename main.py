@@ -228,12 +228,12 @@ def extract_data():
                 if success:
                     opportunity_id = existing_opportunity['id']
                     opportunity_url = f"{ODOO_URL}/web#id={opportunity_id}&model=crm.lead"
-                    messagebox.showinfo("Opportunity Updated", f"Opportunity '{opportunity_name}' updated in Odoo.")
+                    #messagebox.showinfo("Opportunity Updated", f"Opportunity '{opportunity_name}' updated in Odoo.")
                     display_clickable_link(opportunity_url)
                 else:
                     messagebox.showerror("Opportunity Update Error", "Failed to update existing opportunity.")
             else:
-                messagebox.showinfo("Opportunity Skipped", "Existing opportunity was not updated.")
+                #messagebox.showinfo("Opportunity Skipped", "Existing opportunity was not updated.")
                 opportunity_id = existing_opportunity['id']
                 opportunity_url = f"{ODOO_URL}/web#id={opportunity_id}&model=crm.lead"
         else:
@@ -249,12 +249,12 @@ def extract_data():
                 if new_id:
                     opportunity_id = new_id
                     opportunity_url = f"{ODOO_URL}/web#id={opportunity_id}&model=crm.lead"
-                    messagebox.showinfo("Opportunity Created", f"New opportunity created with ID {new_id}.")
+                    #messagebox.showinfo("Opportunity Created", f"New opportunity created with ID {new_id}.")
                     display_clickable_link(opportunity_url)
                 else:
                     messagebox.showerror("Opportunity Error", "Failed to create new opportunity.")
-            else:
-                messagebox.showinfo("Opportunity Skipped", "Opportunity was not created.")
+            #else:
+                #messagebox.showinfo("Opportunity Skipped", "Opportunity was not created.")
 
         if opportunity_id:
             create_activity_decision = messagebox.askyesno("Create Follow-Up Activity", f"Do you want to create a follow-up activity for opportunity '{opportunity_name}'?")
@@ -270,26 +270,25 @@ def extract_data():
                             'date_deadline': activity_date, 'note': f"Follow-up for opportunity '{opportunity_name}'. URL: {opportunity_url}"
                         }
                         activity_created = create_odoo_activity(models, uid, activity_data)
-                        if activity_created:
-                            messagebox.showinfo("Activity Created", f"Follow-up activity created for Opportunity ID {opportunity_id}.")
-                        else:
+                        if not activity_created:
+                            #messagebox.showinfo("Activity Created", f"Follow-up activity created for Opportunity ID {opportunity_id}.")
+                        #else:
                             messagebox.showerror("Activity Error", "Failed to create follow-up activity.")
-                    else:
-                        messagebox.showwarning("Activity Skipped", "Could not get Odoo model ID for 'crm.lead'. Activity not created.")
+                    #else:
+                        #messagebox.showwarning("Activity Skipped", "Could not get Odoo model ID for 'crm.lead'. Activity not created.")
                 else:
                     messagebox.showwarning("Activity Skipped", "Could not find 'Hal Pepler' in Odoo. Activity not created.")
-            else:
-                messagebox.showinfo("Activity Skipped", "Follow-up activity was not created per user's choice.")
+            #else:
+                #messagebox.showinfo("Activity Skipped", "Follow-up activity was not created per user's choice.")
 
 root = tk.Tk()
-root.title("Odoo Lead Parser")
+root.title("Odoo Lead Parser version 003")
 
 frame = ttk.Frame(root, padding="10")
 frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
 ttk.Label(frame, text="Paste Odoo CRM Text:").grid(row=0, column=0, sticky=tk.W)
 
-# --- MODIFIED: input_text widget ---
 input_text = tk.Text(frame, width=80, height=12,
                      bg="white",    # Explicit background color
                      fg="black",    # Explicit foreground (text) color
@@ -300,7 +299,6 @@ ttk.Button(frame, text="Extract & Sync to Odoo", command=extract_data).grid(row=
 
 ttk.Label(frame, text="Extracted Output:").grid(row=3, column=0, sticky=tk.W)
 
-# --- MODIFIED: result_output widget ---
 result_output = tk.Text(frame, width=80, height=12,
                          background="#f0f0f0", # Your existing background color
                          fg="black",           # Explicit foreground (text) color
