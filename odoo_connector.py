@@ -13,6 +13,8 @@ ODOO_DB = 'wavcor-international-inc2'
 #ODOO_DB = 'wavcor-test-2025-07-20'
 ODOO_USERNAME = 'jason@wavcor.ca'
 ODOO_PASSWORD = 'Wavcor3702?'
+#ODOO_USERNAME = 'al@wavcor.ca'
+#ODOO_PASSWORD = 'wavcor3702?'
 
 def connect_odoo():
     """Establishes an XML-RPC connection to the Odoo server."""

@@ -282,7 +282,7 @@ def extract_data():
                 #messagebox.showinfo("Activity Skipped", "Follow-up activity was not created per user's choice.")
 
 root = tk.Tk()
-root.title("Odoo Lead Parser version 003")
+root.title("Odoo Lead Parser version 004")
 
 frame = ttk.Frame(root, padding="10")
 frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
