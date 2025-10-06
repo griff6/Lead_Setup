@@ -6,21 +6,25 @@ from datetime import datetime, timedelta
 import math
 from typing import Optional, Union
 import re
+import string
 
 ODOO_URL = 'https://wavcor-international-inc2.odoo.com'
 #ODOO_URL = 'https://wavcor-test-2025-07-20.odoo.com'
 ODOO_DB = 'wavcor-international-inc2'
 #ODOO_DB = 'wavcor-test-2025-07-20'
-ODOO_USERNAME = 'jason@wavcor.ca'
-ODOO_PASSWORD = 'Wavcor3702?'
-#ODOO_USERNAME = 'al@wavcor.ca'
-#ODOO_PASSWORD = 'wavcor3702?'
+#ODOO_USERNAME = 'jason@wavcor.ca'
+#ODOO_PASSWORD = 'Wavcor3702?'
+ODOO_USERNAME = 'al@wavcor.ca'
+ODOO_PASSWORD = 'wavcor3702'
 
 def connect_odoo():
     """Establishes an XML-RPC connection to the Odoo server."""
     try:
         common = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/common')
+        version = common.version()
+        print(f"Odoo version: {version}")
         uid = common.authenticate(ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD, {})
+        print(f"Authenticated as UID: {uid}")
         if not uid:
             print("ERROR: Authentication failed. Check your Odoo credentials.")
             return None, None
@@ -751,29 +755,66 @@ def find_existing_opportunity(opportunity_name):
     """
     Finds an existing opportunity in Odoo by its name.
     Returns a dictionary of the opportunity's info (id, name) or None.
+    Handles extra spaces, Unicode whitespace, trailing spaces, and case differences.
+    Returns the closest match if no exact match is found.
     """
+    def normalize_spaces(text: str) -> str:
+        """
+        Normalize all whitespace:
+        - Strip leading/trailing whitespace
+        - Collapse any sequence of whitespace (including non-breaking) into a single space
+        """
+        text = ''.join(c for c in text if c in string.printable)
+        # Replace any whitespace sequence with a single space
+        text = re.sub(r'\s+', ' ', text.strip())
+        return text.lower()
+    
+    # Normalize the input name
+    target_name = normalize_spaces(opportunity_name)
+    
     uid, models = connect_odoo()
     if not uid:
         print("Failed to log in to Odoo for opportunity search.")
         return None
+    
     try:
-        domain = [('name', '=', opportunity_name)]
-        existing = models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD,
+        # Search using ilike (case-insensitive, substring)
+        domain = [('name', 'ilike', target_name)]
+        existing = models.execute_kw(
+            ODOO_DB, uid, ODOO_PASSWORD,
             'crm.lead', 'search_read',
-            [domain], {'fields': ['id', 'name'], 'limit': 1})
+            [domain],
+            {'fields': ['id', 'name']}
+        )
+        
+        closest_match = None
+        
+        for record in existing:
+            record_name = normalize_spaces(record['name'])
             
-        if existing:
-            print(f"DEBUG (connector): Found existing opportunity: {existing[0]['name']} (ID: {existing[0]['id']})")
-            return existing[0]
-        else:
-            print(f"DEBUG (connector): No existing opportunity found with name: '{opportunity_name}'")
-            return None
+            # Exact match (after normalization)
+            if record_name.lower() == target_name.lower():
+                print(f"DEBUG: Exact match found: {record_name} (ID: {record['id']})")
+                return record
+            
+            # Save the first record as closest match if exact not found
+            if closest_match is None:
+                closest_match = record
+        
+        if closest_match:
+            print(f"DEBUG: No exact match found. Returning closest match: {closest_match['name']} (ID: {closest_match['id']})")
+            return closest_match
+        
+        print(f"DEBUG: No opportunity found matching: '{opportunity_name}'")
+        return None
+
     except xmlrpc.client.Fault as e:
         print(f"Odoo RPC Error finding opportunity '{opportunity_name}': {e.faultString}")
         return None
     except Exception as e:
         print(f"Unexpected error finding opportunity '{opportunity_name}': {e}")
         return None
+
 
 
 def update_odoo_opportunity(opportunity_id, opportunity_data):

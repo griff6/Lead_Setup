@@ -93,6 +93,9 @@ def display_clickable_link(url, label="Opportunity URL:"):
     result_output.insert(tk.END, "\n") # Add a newline after the link for neatness
     result_output.see(tk.END) # Scroll to the end to make the new link visible
 
+def normalize_spaces(text: str) -> str:
+    # Splits on any whitespace and rejoins with a single space
+    return " ".join(text.split())
 
 def extract_data():
     text = input_text.get("1.0", tk.END)
@@ -104,37 +107,69 @@ def extract_data():
     }
 
     i = 0
+
     while i < len(lines):
         line = lines[i].strip()
-        if line.startswith("Name:"):
-            data["Name"] = line.replace("Name:", "").strip()
-        elif line.startswith("Email:"):
-            data["Email"] = line.replace("Email:", "").strip()
+        if line.startswith("First name:"):
+            i+=1
+            line = lines[i].strip()
+            data["Name"] = line.strip()
+        elif line.startswith("Last name:"):
+            i+=1
+            line = lines[i].strip()
+            data["Name"] += " " + line.strip()
+            print(f"DEBUG: Name: {data['Name']}")
+        elif line.startswith('Email:'):
+            i+=1
+            line = lines[i].strip()
+            data["Email"] = line.strip()
+            print(f"DEBUG: Email: {data['Email']}")
         elif line.startswith("Phone:"):
-            data["Phone"] = line.replace("Phone:", "").strip()
+            i+=1
+            line = lines[i].strip()
+            data["Phone"] = line.strip()
+            print(f"DEBUG: Phone: {data['Phone']}")
         elif line.startswith("City:"):
-            data["City"] = line.replace("City:", "").strip()
-        elif line.startswith("Prov/State:"):
-            raw_state = line.replace("Prov/State:", "").strip()
-            data["Prov/State"] = normalize_state(raw_state)
-        elif line.startswith("Products Interest:"):
-            products_text = line.replace("Products Interest:", "").strip()
+            i+=1
+            line = lines[i].strip()
+            data["City"] = line.strip()
+            print(f"DEBUG: City: {data['City']}")
+        elif line.startswith("Province/State:"):
+            i+=1
+            line = lines[i].strip()
+            data["Prov/State"] = normalize_state(line)
+            print(f"DEBUG: Prov/State: {data['Prov/State']}")
+        elif line.startswith("What products are you interested in?"):
+            i+=1
+            line = lines[i].strip()
+            products_text = line.strip()
             i += 1
-            while i < len(lines) and not any(lines[i].strip().startswith(prefix) for prefix in ["Message:", "Name:", "Email:", "Phone:", "City:", "Prov/State:", "Products Interest:"]):
+            while i < len(lines) and not any(lines[i].strip().startswith(prefix) for prefix in ["Message:", "Name:", "Email:", "Phone:", "City:", "Province/State:", "Provide any other"]):
                 products_text += " " + lines[i].strip()
                 i += 1
             i -= 1
             data["Products Interest"] = [p.strip() for p in products_text.split(",") if p.strip()]
-        elif line.startswith("Message:"):
-            message_content_parts = [line.replace("Message:", "", 1).strip()]
+            print(f"DEBUG: Products Interest: {data['Products Interest']}")
+        elif line.startswith("Provide any other information"):
+            #message_content_parts = [line.replace("Message:", "", 1).strip()]
+            i+=1
+            line = lines[i].strip()
             current_line_index = i + 1
-            while current_line_index < len(lines) and not any(lines[current_line_index].strip().startswith(prefix) for prefix in ["Name:", "Email:", "Phone:", "City:", "Prov/State:", "Products Interest:"]):
+            while current_line_index < len(lines) and not any(lines[current_line_index].strip().startswith(prefix) for prefix in ["Name:", "Email:", "Phone:", "City:", "Prov/State:", "What products are you interested in?"]):
                 stripped_sub_line = lines[current_line_index].strip()
                 if stripped_sub_line:
-                    message_content_parts.append(stripped_sub_line)
+                    line.append(stripped_sub_line)
                 current_line_index += 1
-            data["Message"] = "\n".join(part for part in message_content_parts if part).strip()
+            data["Message"] = "".join(part for part in line if part).strip()
+            print(f"DEBUG: Message: {data['Message']}")
             break
+        elif line.startswith("What style of man hole does your hopper have?"):
+            i+=1
+            line = lines[i].strip()
+            data["Message"] += " " + line.strip();
+            print(f"DEBUG: Message: {data['Message']}")
+            data["Products Interest"] = ['Manhole Aeration']
+            print(f"DEBUG: Products Interest: {data['Products Interest']}")
         i += 1
 
     result_output.delete("1.0", tk.END)
@@ -205,6 +240,7 @@ def extract_data():
 
     if contact_id:
         opportunity_name = data['Name']
+        opportunity_name = normalize_spaces(opportunity_name)
         existing_opportunity = find_existing_opportunity(opportunity_name)
         opportunity_id = None
         opportunity_url = ""
@@ -282,7 +318,7 @@ def extract_data():
                 #messagebox.showinfo("Activity Skipped", "Follow-up activity was not created per user's choice.")
 
 root = tk.Tk()
-root.title("Odoo Lead Parser version 004")
+root.title("Odoo Lead Parser version 005")
 
 frame = ttk.Frame(root, padding="10")
 frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
